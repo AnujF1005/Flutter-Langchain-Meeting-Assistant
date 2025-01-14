@@ -2,10 +2,12 @@ import 'dart:io';
 import 'package:langchain/langchain.dart';
 import 'package:langchain_openai/langchain_openai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:langchain_community/langchain_community.dart';
+import 'package:path_provider/path_provider.dart';
 
 class AssistantRAG {
   late final ChatOpenAI llm;
-  late final MemoryVectorStore vectorstore;
+  late final ObjectBoxVectorStore vectorstore;
   late final dynamic summarizerPipeline;
   late final dynamic ragPipeline;
 
@@ -24,7 +26,12 @@ class AssistantRAG {
     );
 
     // Vectorstore
-    vectorstore = MemoryVectorStore(embeddings: embeddings);
+    final directory = await getApplicationDocumentsDirectory();
+    vectorstore = ObjectBoxVectorStore(
+      embeddings: embeddings,
+      dimensions: embeddings.dimensions ?? 1536,
+      directory: directory.path,
+    );
     final retriever = vectorstore.asRetriever();
 
     // Prompt for summarizer

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_langchain/services/langchain.dart';
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -20,6 +21,23 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _isLoadingFile = false;
   bool _isLoadingQuery = false;
   List<String> _addedFiles = [];
+  @override
+  void initState() {
+    super.initState();
+    _loadAddedFiles();
+  }
+
+  Future<void> _loadAddedFiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _addedFiles = prefs.getStringList('addedFiles') ?? [];
+    });
+  }
+
+  Future<void> _saveAddedFiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('addedFiles', _addedFiles);
+  }
 
   void _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -68,6 +86,7 @@ class _MyHomePageState extends State<MyHomePage> {
           if (success) {
             setState(() {
               _addedFiles.add(File(_filePath!).uri.pathSegments.last);
+              _saveAddedFiles();
               _filePath = null;
               _isLoadingFile = false;
             });
