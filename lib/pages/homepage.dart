@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_langchain/services/langchain.dart';
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -19,7 +20,35 @@ class _MyHomePageState extends State<MyHomePage> {
   String? _filePath;
   bool _isLoadingFile = false;
   bool _isLoadingQuery = false;
-  List<String> _addedFiles = [];
+  List<Map<String, String>> _addedFiles = [];
+  Map<String, bool> _isDeleting = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAddedFiles();
+  }
+
+  Future<void> _loadAddedFiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? addedFiles = prefs.getStringList('addedFiles');
+    if (addedFiles != null) {
+      setState(() {
+        _addedFiles = addedFiles.map((file) {
+          final parts = file.split('|');
+          return {'id': parts[0], 'name': parts[1]};
+        }).toList();
+      });
+    }
+  }
+
+  Future<void> _saveAddedFiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> addedFiles = _addedFiles.map((file) {
+      return '${file['id']}|${file['name']}';
+    }).toList();
+    await prefs.setStringList('addedFiles', addedFiles);
+  }
 
   void _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -62,19 +91,34 @@ class _MyHomePageState extends State<MyHomePage> {
             selectedTime.minute,
           );
 
-          final success = await assistantRAG.addConversation(
+          final result = await assistantRAG.addConversation(
               _filePath!, finalDateTime.toString());
 
-          if (success) {
+          if (result['success']) {
             setState(() {
-              _addedFiles.add(File(_filePath!).uri.pathSegments.last);
+              _addedFiles.add({
+                'id': result['id'],
+                'name': File(_filePath!).uri.pathSegments.last,
+              });
+              _saveAddedFiles();
               _filePath = null;
               _isLoadingFile = false;
             });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Conversation added successfully'),
+              ),
+            );
           } else {
             setState(() {
               _isLoadingFile = false;
             });
+            final err = result['error'];
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: $err'),
+              ),
+            );
           }
         } else {
           setState(() {
@@ -87,6 +131,36 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
     }
+  }
+
+  void _deleteFile(String id, String file) async {
+    setState(() {
+      _isDeleting[id] = true;
+    });
+
+    final result = await assistantRAG.deleteConversation(id);
+    if (!result['success']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${result['error']}'),
+        ),
+      );
+      setState(() {
+        _isDeleting.remove(id);
+      });
+      return;
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Conversation deleted successfully'),
+        ),
+      );
+    }
+    setState(() {
+      _addedFiles.removeWhere((file) => file['id'] == id);
+      _isDeleting.remove(id);
+    });
+    await _saveAddedFiles();
   }
 
   void _askQuery() async {
@@ -108,6 +182,36 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              child: Text(
+                'Added Files',
+                style: TextStyle(
+                  fontSize: 24,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
+            ),
+            for (var file in _addedFiles)
+              ListTile(
+                title: Text(file['name']!),
+                trailing: _isDeleting[file['id']] == true
+                    ? const CircularProgressIndicator()
+                    : IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () =>
+                            _deleteFile(file['id']!, file['name']!),
+                      ),
+              ),
+          ],
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Column(
@@ -124,14 +228,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   ? const CircularProgressIndicator()
                   : const Text('Submit File'),
             ),
-            if (_addedFiles.isNotEmpty)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Added files:'),
-                  for (var file in _addedFiles) Text(file),
-                ],
-              ),
             TextField(
               controller: _queryController,
               decoration: const InputDecoration(

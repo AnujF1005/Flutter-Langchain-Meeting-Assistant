@@ -37,8 +37,11 @@ dependencies:
   langchain: ^0.7.7+2
   langchain_openai: ^0.7.3
   flutter_dotenv: ^5.2.1
-  langchain_chroma: ^0.2.1+5
   file_picker: ^8.1.7
+  langchain_community: ^0.2.2
+  objectbox: ^4.0.3
+  objectbox_flutter_libs: any
+  shared_preferences: ^2.3.5
 
 dev_dependencies:
   flutter_test:
