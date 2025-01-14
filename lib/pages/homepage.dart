@@ -234,11 +234,48 @@ class _MyHomePageState extends State<MyHomePage> {
                 hintText: 'Ask AI...',
               ),
             ),
-            ElevatedButton(
-              onPressed: _isLoadingQuery ? null : _askQuery,
-              child: _isLoadingQuery
-                  ? const CircularProgressIndicator()
-                  : const Text('Submit Query'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: _isLoadingQuery ? null : _askQuery,
+                  child: _isLoadingQuery
+                      ? const CircularProgressIndicator()
+                      : const Text('Submit Query'),
+                ),
+                const SizedBox(width: 10),
+                IconButton(
+                  icon: Icon(Icons.refresh),
+                  color: Colors.red,
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Refresh Chat History'),
+                          content: const Text(
+                              'Are you sure you want to refresh the chat history?'),
+                          actions: <Widget>[
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                assistantRAG.clearMemory();
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('Refresh'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
             ),
             Expanded(
               child: TextField(
