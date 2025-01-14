@@ -10,6 +10,9 @@ class AssistantRAG {
   late final ObjectBoxVectorStore vectorstore;
   late final dynamic summarizerPipeline;
   late final dynamic ragPipeline;
+  // For session
+  late ConversationBufferMemory memory;
+  String history = '';
 
   AssistantRAG() {
     _initialize();
@@ -54,12 +57,25 @@ class AssistantRAG {
     // Pipeline for summarizer
     summarizerPipeline = summarizerPrompt.pipe(llm).pipe(StringOutputParser());
 
+    // Prompt for query rephraser
+    final queryRephraserPrompt = PromptTemplate.fromTemplate('''
+    You are a professional query rephraser assisting with daily conversation recall.
+    Your task is to rephrase the provided question based on the chat history such that question is self sufficient and does not require any additional context to answer.
+    Rephrase the given question based on chat history.\n
+    Chat history: {history} \n
+    Question: {question}
+    ''');
+
+    // Pipeline for query rephraser
+    final queryRephraserPipeline =
+        queryRephraserPrompt.pipe(llm).pipe(StringOutputParser());
+
     // Pipeline for RAG
     final setupAndRetrieval = Runnable.fromMap<String>({
       'context': retriever.pipe(
         Runnable.mapInput((docs) => docs.map((d) => d.pageContent).join('\n')),
       ),
-      'question': Runnable.passthrough(),
+      'question': Runnable.passthrough()
     });
 
     final ragPrompt = PromptTemplate.fromTemplate('''
@@ -68,8 +84,24 @@ class AssistantRAG {
     Question: {question}
     ''');
 
-    ragPipeline =
-        setupAndRetrieval.pipe(ragPrompt).pipe(llm).pipe(StringOutputParser());
+    ragPipeline = queryRephraserPipeline
+        .pipe(setupAndRetrieval)
+        .pipe(ragPrompt)
+        .pipe(llm)
+        .pipe(StringOutputParser());
+
+    // Memory
+    memory = ConversationBufferMemory();
+  }
+
+  void _updateMemory(Map<String, String> chat) async {
+    memory.saveContext(
+        inputValues: {'input': chat['input']},
+        outputValues: {'output': chat['output']});
+  }
+
+  void clearMemory() {
+    memory.clear();
   }
 
   Future<Map<String, dynamic>> addConversation(
@@ -94,6 +126,7 @@ class AssistantRAG {
       );
       // Add to vectorstore
       final ids = await vectorstore.addDocuments(documents: [doc]);
+
       return {
         'success': true,
         'id': ids[0],
@@ -129,7 +162,19 @@ class AssistantRAG {
     print("===================\n In Ask Question \n ===================");
     // Retrieve the response
     try {
-      final response = await ragPipeline.invoke(question);
+      final historyObj = await memory.loadMemoryVariables();
+      history = historyObj['history'] ?? '';
+      print("============ history ===============");
+      print(history);
+      print("====================================");
+      final response = await ragPipeline.invoke({
+        'question': question,
+        'history': history,
+      });
+      _updateMemory({
+        'input': question,
+        'output': response,
+      });
       return response;
     } catch (e) {
       print("============ Error in askQuestion ============");
