@@ -63,7 +63,7 @@ class AssistantRAG {
     });
 
     final ragPrompt = PromptTemplate.fromTemplate('''
-    Answer the question based only on the following context. 
+    Answer the question based only on the following context. If context does not provide enough information about the question, say that you don't have enough information to answer the question.
     Context: {context} 
     Question: {question}
     ''');
@@ -72,7 +72,8 @@ class AssistantRAG {
         setupAndRetrieval.pipe(ragPrompt).pipe(llm).pipe(StringOutputParser());
   }
 
-  Future<bool> addConversation(String filePath, String timestamp) async {
+  Future<Map<String, dynamic>> addConversation(
+      String filePath, String timestamp) async {
     try {
       // Open the file and read the contents
       final file = File(filePath);
@@ -92,13 +93,36 @@ class AssistantRAG {
         },
       );
       // Add to vectorstore
-      vectorstore.addDocuments(documents: [doc]);
+      final ids = await vectorstore.addDocuments(documents: [doc]);
+      return {
+        'success': true,
+        'id': ids[0],
+      };
     } catch (e) {
       print("============ Error in addConversation ============");
       print(e);
-      return false;
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
     }
-    return true;
+  }
+
+  Future<Map<String, dynamic>> deleteConversation(String id) async {
+    try {
+      // Delete the document from the vectorstore
+      await vectorstore.delete(ids: [id]);
+      return {
+        'success': true,
+      };
+    } catch (e) {
+      print("============ Error in deleteConversation ============");
+      print(e);
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
   }
 
   Future<String> askQuestion(String question) async {
