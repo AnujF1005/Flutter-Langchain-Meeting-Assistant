@@ -1,16 +1,18 @@
-# flutter_langchain
+# Meeting Assistant
 
-A new Flutter project.
+A Flutter application designed to help you retrieve information from past meetings effortlessly. It leverages Retrieval-Augmented Generation (RAG) with LangChain to provide accurate responses to your queries.
 
-## Getting Started
+Simply upload meeting transcripts along with timestamps, and the app will store them in an on-device persistent database. This ensures that you can search and retrieve details from any past meeting whenever needed. The assistant acts as your personal meeting archive, preserving all essential information.
 
-This project is a starting point for a Flutter application.
+### Features Added:
+- Upload and store meeting transcript files.
+- Process transcripts using OpenAI's LLM and save them in a vector database.
+- Query specific details about past meetings.
+- Maintain context during conversations for a seamless user experience.
+- Option to delete meetings from database.
+- Option to reset current context of conversation.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Screenshots
+<img src="git_images/ss1.jpg" width="200">
+<img src="git_images/ss2.jpg" width="200">
+<img src="git_images/ss3.jpg" width="200">
